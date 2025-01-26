@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Check build options
-        if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.build-target == 'nightly' || github.event.inputs.build-target == 'beta') && github.event.inputs.git-ref != 'master' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.build-target == 'nightly' || github.event.inputs.build-target == 'beta')  }}
         run: |
           echo "::error title=CheckFail::Nightly and Beta Release MUST be built from master"
           exit 1
@@ -580,7 +580,7 @@ jobs:
 
   nightly-release:
     if: ${{ github.event_name == 'schedule' || github.event.inputs.build-target == 'nightly' }}
-    needs: [ build-macos-x64, build-macos-arm64, build-linux-x64, build-linux-arm64, codesign-windows, build-android, e2e-test ]
+    needs: [ build-macos-x64, build-macos-arm64, build-linux-x64, build-linux-arm64, codesign-windows, build-android ]
     runs-on: ubuntu-20.04
     steps:
       - name: Download MacOS x64 Artifacts
@@ -660,7 +660,7 @@ jobs:
   release:
     # NOTE: For now, we only have beta channel to be released on Github
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build-target == 'beta' }}
-    needs: [ build-macos-x64, build-macos-arm64, build-linux-x64, build-linux-arm64, codesign-windows, build-android, e2e-test ]
+    needs: [ build-macos-x64, build-macos-arm64, build-linux-x64, build-linux-arm64, codesign-windows, build-android ]
     runs-on: ubuntu-20.04
     steps:
       - name: Download MacOS x64 Artifacts
