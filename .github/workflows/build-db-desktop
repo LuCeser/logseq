@@ -1,0 +1,68 @@
+name: Build-DB-Desktop
+
+on:
+  push:
+    branches: 
+      - feat/db
+  workflow_dispatch:
+
+env:
+  CLOJURE_VERSION: '1.11.1.1413'
+  NODE_VERSION: '20'
+  JAVA_VERSION: '11'
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          ref: 'feat/db'
+
+      - name: Install Node.js, NPM and Yarn
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache yarn cache directory
+        uses: actions/cache@v3
+        id: yarn-cache
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Fetch deps and fix dugite arch for arm64
+        run: yarn install --ignore-platform && cd node_modules/dugite && npm_config_arch=arm64 node script/download-git.js
+        working-directory: ./static
+
+      - name: Build/Release Electron App for arm64
+        run: yarn electron:make-macos-arm64
+        working-directory: ./static
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID_EMAIL }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Save arm64 artifacts
+        run: |
+          mkdir -p builds
+          mv static/out/make/Logseq.dmg ./builds/Logseq-darwin-arm64-${{ github.sha }}.dmg
+          mv static/out/make/zip/darwin/arm64/*.zip ./builds/Logseq-darwin-arm64-${{ github.sha }}.zip
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: logseq-darwin-arm64-builds
+          path: builds
