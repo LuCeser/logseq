@@ -45,9 +45,8 @@ jobs:
           pkgver=$(node ./scripts/get-pkg-version.js "${{ github.event.inputs.build-target }}")
           echo "version=$pkgver" >> $GITHUB_OUTPUT
 
-      - name: Build Released-Web
-        run: |
-          yarn gulp:build && clojure -M:cljs release app  --config-merge '{:compiler-options {:source-map-include-sources-content false :source-map-detail-level :symbols}}'
+      - name: Compile CLJS
+        run: yarn install && gulp build && yarn cljs:release-electron
         env:
           LOGSEQ_SENTRY_DSN: ${{ secrets.LOGSEQ_SENTRY_DSN }}
           LOGSEQ_POSTHOG_TOKEN: ${{ secrets.LOGSEQ_POSTHOG_TOKEN }}
