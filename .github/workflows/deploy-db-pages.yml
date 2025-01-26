@@ -10,7 +10,7 @@ env:
   JAVA_VERSION: "11"
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -48,12 +48,79 @@ jobs:
           LOGSEQ_SENTRY_DSN: ${{ secrets.LOGSEQ_SENTRY_DSN }}
           LOGSEQ_POSTHOG_TOKEN: ${{ secrets.LOGSEQ_POSTHOG_TOKEN }}
 
-      - name: Publish to Cloudflare Pages
-        uses: cloudflare/pages-action@1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: 2553ea8236c11ea0f88de28fce1cbfee
-          projectName: "logseq-db-demo"
-          directory: "public"
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          branch: "main"
+  build-macos-arm64:
+            needs: [ build ]
+            runs-on: macos-14
+        
+            steps:
+              - name: Download The Static Asset
+                uses: actions/download-artifact@v3
+                with:
+                  name: static
+                  path: static
+        
+              - name: Retrieve tag version
+                id: ref
+                run: |
+                  pkgver=$(cat ./static/VERSION)
+                  echo "version=$pkgver" >> $GITHUB_OUTPUT
+        
+              - name: Install Node.js, NPM and Yarn
+                uses: actions/setup-node@v3
+                with:
+                  node-version: ${{ env.NODE_VERSION }}
+        
+              - name: Get yarn cache directory path
+                id: yarn-cache-dir-path
+                run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+              - name: Cache yarn cache directory
+                uses: actions/cache@v3
+                id: yarn-cache
+                with:
+                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  key: ${{ runner.os }}-arm64-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                    ${{ runner.os }}-arm64-yarn-
+        
+              - name: Install Python
+                uses: actions/setup-python@v4
+                with:
+                  python-version: '3.11'
+        
+              - name: Signing By Apple Developer ID
+                if: ${{ github.repository == 'logseq/logseq' }}
+                uses: apple-actions/import-codesign-certs@v1
+                with:
+                  p12-file-base64: ${{ secrets.APPLE_CERTIFICATES_P12 }}
+                  p12-password: ${{ secrets.APPLE_CERTIFICATES_P12_PASSWORD }}
+        
+              # - name: Cache Node Modules
+              #   uses: actions/cache@v3
+              #   with:
+              #     path: |
+              #       **/node_modules
+              #     key: ${{ runner.os }}-node-modules
+        
+              - name: Fetch deps and fix dugit arch for arm64
+                run: yarn install --ignore-platform && cd node_modules/dugite && npm_config_arch=arm64 node script/download-git.js
+                working-directory: ./static
+        
+              - name: Build/Release Electron App for arm64
+                run: yarn electron:make-macos-arm64
+                working-directory: ./static
+                env:
+                  APPLE_ID: ${{ secrets.APPLE_ID_EMAIL }}
+                  APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+                  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        
+              - name: Save arm64 artifacts
+                run: |
+                  mkdir -p builds
+                  mv static/out/make/Logseq.dmg ./builds/Logseq-darwin-arm64-${{ steps.ref.outputs.version }}.dmg
+                  mv static/out/make/zip/darwin/arm64/*.zip ./builds/Logseq-darwin-arm64-${{ steps.ref.outputs.version }}.zip
+        
+              - name: Upload Artifact
+                uses: actions/upload-artifact@v3
+                with:
+                  name: logseq-darwin-arm64-builds
+                  path: builds
