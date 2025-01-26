@@ -38,6 +38,12 @@ jobs:
       - name: Set Build Environment Variables
         run: |
           echo "ENABLE_FILE_SYNC_PRODUCTION=false" >> $GITHUB_ENV
+      
+      - name: Retrieve tag version
+        id: ref
+        run: |
+          pkgver=$(node ./scripts/get-pkg-version.js "${{ github.event.inputs.build-target }}")
+          echo "version=$pkgver" >> $GITHUB_OUTPUT
 
       - name: Build Released-Web
         run: |
@@ -45,6 +51,18 @@ jobs:
         env:
           LOGSEQ_SENTRY_DSN: ${{ secrets.LOGSEQ_SENTRY_DSN }}
           LOGSEQ_POSTHOG_TOKEN: ${{ secrets.LOGSEQ_POSTHOG_TOKEN }}
+
+      - name: Display Package.json
+        run: cat ./package.json
+        working-directory: ./static
+  
+      - name: Save VERSION file
+        run: echo "${{ steps.ref.outputs.version }}" > ./VERSION
+        working-directory: ./static
+  
+      - name: List Files
+        run: ls -al
+        working-directory: ./static
 
       - name: Cache Static File
         uses: actions/upload-artifact@v3
