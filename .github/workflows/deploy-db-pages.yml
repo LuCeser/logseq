@@ -3,6 +3,17 @@ name: Deploy DB Version to Cloud
 on:
   push:
     branches: ["feat/db"]
+  workflow_dispatch:
+    inputs:
+      build-target:
+        description: 'Build Target'
+        type: choice
+        required: false
+        options:
+          - beta
+          - test
+          - non-release
+        default: "non-release"
 
 env:
   CLOJURE_VERSION: "1.11.1.1413"
