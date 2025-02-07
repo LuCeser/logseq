@@ -75,7 +75,7 @@ jobs:
         working-directory: ./static
 
       - name: Cache Static File
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: static
           path: static
@@ -152,7 +152,7 @@ jobs:
                   mv static/out/make/zip/darwin/arm64/*.zip ./builds/Logseq-darwin-arm64-${{ steps.ref.outputs.version }}.zip
         
               - name: Upload Artifact
-                uses: actions/upload-artifact@v3
+                uses: actions/upload-artifact@v4
                 with:
                   name: logseq-darwin-arm64-builds
                   path: builds
